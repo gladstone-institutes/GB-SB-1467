@@ -28,7 +28,7 @@
 
 #setup paths
 base_dir=/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025
-container_dir=$base_dir/assets/containers
+container_dir=$base_dir/assets
 export APPTAINER_BINDPATH="$base_dir"
 
 #assign the argument values to variables
