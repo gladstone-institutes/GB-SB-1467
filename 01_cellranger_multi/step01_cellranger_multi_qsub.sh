@@ -27,7 +27,7 @@ for file in $base_dir/scripts/GB-SB-1467/01_cellranger_multi/*.csv; do
     echo "Processing config file: $file, Output name: $sample_out_id, Output path: $outdir"
 
     # run cellranger multi for current sample
-    qsub $cellranger_script $sample_out_id $file_name $outdir
+    qsub $cellranger_script $sample_out_id $file $outdir
 done
 
 
