@@ -5,11 +5,11 @@ create-bam,false
 
 [libraries]
 fastq_id,fastqs,feature_types
-Jain_GEM-X_Flex_RNA_GEM1,/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/data/Jain_Flex_RNA_2025,Gene Expression
+Jain_GEM-X_Flex_RNA_GEM4,/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/data/Jain_Flex_RNA_2025,Gene Expression
 
 [samples]
 sample_id,probe_barcode_ids,description
-sampleA,BC001,WT_PBS
-sampleP,BC002,KO_NR
-sampleK,BC003,KO_PBS
-sampleH,BC004,Het_NR
+sampleM,BC001,KO_NR
+sampleL,BC002,KO_PBS
+sampleG,BC003,WT_NR
+sampleC,BC004,Het_PBS
