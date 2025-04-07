@@ -1,0 +1,72 @@
+FROM bioconductor/bioconductor_docker:RELEASE_3_20
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+RUN apt-get -y update \
+      && apt-get -y dist-upgrade \
+      && apt-get -y install --no-install-recommends --no-install-suggests \
+        apt-transport-https apt-utils ca-certificates cmake curl g++ gcc \
+        gfortran git make libblas-dev libcurl4-gnutls-dev libfontconfig1-dev \
+        libfreetype6-dev libfribidi-dev libgit2-dev libharfbuzz-dev \
+        libiodbc2-dev libjpeg-dev liblapack-dev libmariadb-dev libpng-dev \
+        libpq-dev libsqlite3-dev libssh-dev libssl-dev libtiff5-dev \
+        libxml2-dev locales pandoc pkg-config r-base libcairo2-dev libxt-dev \
+      && apt-get -y autoremove \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/*
+
+RUN Rscript -e 'install.packages("lme4")'
+RUN Rscript -e 'install.packages(c("optparse", "remotes"))'
+RUN Rscript -e 'install.packages(c("foreach","doParallel","HGNChelper","openxlsx"))'
+RUN Rscript -e 'install.packages(c("tidyverse","devtools"))'
+RUN Rscript -e 'devtools::install_version("spatstat", version = "3.3-2")'
+RUN Rscript -e 'remotes::install_version("Seurat","5.2.1")'
+RUN Rscript -e 'install.packages("ranger")'
+RUN Rscript -e 'install.packages("BiocManager")'
+RUN Rscript -e 'BiocManager::install(c("ComplexHeatmap", "dittoSeq", "DropletUtils", "Nebulosa"))'
+RUN Rscript -e 'remotes::install_github("cran/Matrix", ref = "1.7-3")'
+RUN Rscript -e 'BiocManager::install("glmGamPoi")'
+RUN Rscript -e 'install.packages("ggpubr")'
+RUN Rscript -e 'install.packages("hdf5r")'
+RUN Rscript -e 'install.packages("rliger")'
+RUN Rscript -e 'remotes::install_github("cran/SoupX", ref = "1.6.2")'
+RUN Rscript -e 'install.packages("pheatmap")'
+RUN Rscript -e 'library("remotes");install_version("gdata", "3.0.1")'
+RUN Rscript -e 'library("remotes");install_version("gplots", "3.2.0")'
+RUN Rscript -e 'library("remotes");install_version("RColorBrewer", "1.1-3")'
+
+
+# Pin DoubletFinder version using the most recent commit
+RUN Rscript -e 'remotes::install_github("chris-mcginnis-ucsf/DoubletFinder")'
+
+# Install scCustomize to compare cellbender output to input matrices
+RUN Rscript -e 'install.packages("scCustomize")'
+
+# Install harmony for batch correction
+RUN Rscript -e 'library("remotes");install_version("harmony", "1.2.3")'
+
+# Check if installs worked
+RUN Rscript -e 'lapply(c("DoubletFinder","harmony","hdf5r","scCustomize", "gdata", "gplots"), library, character.only = TRUE)'
+RUN Rscript -e 'lapply(c("optparse", "remotes", "ggpubr", "ranger", "glmGamPoi", "RColorBrewer"), library, character.only = TRUE)'
+RUN Rscript -e 'lapply(c("foreach","doParallel","HGNChelper","openxlsx","Seurat","pheatmap"), library, character.only = TRUE)'
+
+
+WORKDIR /opt
+
+# Install ScType from github.
+# It is not organized like a typical R package so will need to run source
+# on the files in the following directory /opt/sc-type/
+RUN git clone https://github.com/IanevskiAleksandr/sc-type.git
+
+# Run container as non-root
+RUN groupadd -g 10001 notroot && \
+   useradd -u 10000 -g notroot notroot 
+
+USER notroot:notroot
+
+CMD ["/bin/bash"]
+
+# Copy dockerfile into the image
+COPY Dockerfile /Dockerfile
