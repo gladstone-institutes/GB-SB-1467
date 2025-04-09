@@ -31,7 +31,8 @@ apptainer exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder.sif Rscrip
 $script_dir/02_doublet_removal/02a_doubletfinder.R \
 --cellranger_h5 $row_value/count/sample_filtered_feature_bc_matrix.h5 \
 --doublet_rate_estimate $script_dir/02_doublet_removal/10X_doublet_rate_estimation.csv \
---output $data_dir/results/02_doublet_removal/$task_sample
+--output $data_dir/results/02_doublet_removal/$task_sample \
+--percent_mt_cutoff 0.15
 
 
 ## End-of-job summary, if running as a job

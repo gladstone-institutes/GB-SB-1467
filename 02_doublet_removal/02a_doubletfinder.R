@@ -14,7 +14,7 @@
 ## --mt_genes_pattern "^mt-" \
 ## --percent_mt_cutoff 0.20 \
 ## --nfeature_min_cutoff 750 \
-## --output 04c_pre_post_ambient_removal/sample_1
+## --output 02_doublet_removal/sample_1
 ##
 ## Run "Rscript 02a_doubletfinder.R --help" for more information
 ###############################################################################
@@ -105,10 +105,10 @@ if (!is.null(pre) && !is.null(post)) {
   dual_seurat[["RAW"]] <- NULL
 } else {
   if (!is.null(pre)) {
-    dual_seurat <- CreateSeuratObject(pre)
+    dual_seurat <- CreateSeuratObject(pre, min.cells = 4)
     print("Cell Ranger H5 provided.")
   } else if (!is.null(post)) {
-    dual_seurat <- CreateSeuratObject(post)
+    dual_seurat <- CreateSeuratObject(post, min.cells = 4)
     print("Cell Bender H5 provided.")
   }
 }
