@@ -8,9 +8,9 @@
 ##
 ## Usage example:
 ## 03a_visualize_qc_metrics.R \                 
-## --input_preqc 02_cellranger_count \  # Folder with cellranger count outputs
-## --input_postqc 05_doublet_removal \  # Folder with doublet finder outputs
-## --output 06_visualize_qc_metrics     # Ouput directory
+## --input_preqc 01_cellranger_count \  # Folder with cellranger count outputs
+## --input_postqc 02_doublet_removal \  # Folder with doublet finder outputs
+## --output 03_visualize_qc_metrics     # Ouput directory
 ##
 ## Run "Rscript 03a_visualize_qc_metrics.R --help" for more information
 ###############################################################################
@@ -251,11 +251,11 @@ ggarrange(p1,p1,p1,p6,p2,p2,p2,
           nrow=2,
           ncol = 7,
           widths = c(1.25,1,1,0.3,1.25,1,1),
-          heights = c(0.01,1))%>%
+          heights = c(0.1,1))%>%
   ggsave(filename =  file.path(opt$output,"merged_qc_metrics.pdf"),
          plot = .,
-         width = 35,
-         height = ceiling(length(plot_list_postqc) / 2) * 2.5,
+         width = 40,
+         height = ceiling(length(plot_list_postqc) / 2) * 3,
          limitsize = FALSE)
 
 

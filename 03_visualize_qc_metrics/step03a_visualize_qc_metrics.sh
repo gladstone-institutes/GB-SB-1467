@@ -3,9 +3,9 @@
 #$ -o /gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/tmp/
 #$ -e /gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/tmp/
 #$ -pe smp 2
-#$ -l mem_free=100G
-#$ -l scratch=50G
-#$ -l h_rt=06:00:00
+#$ -l mem_free=200G
+#$ -l scratch=100G
+#$ -l h_rt=08:00:00
 #$ -j yes
 
 data_dir=/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025
