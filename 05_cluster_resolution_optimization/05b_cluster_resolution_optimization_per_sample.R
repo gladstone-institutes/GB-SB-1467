@@ -1,14 +1,14 @@
 #!/usr/bin/env Rscript
 
 ###############################################################################
-## Project ID: YH_ZL02
+## Project ID: GB-SB-1467
 ## Authors: Reuben Thomas, Natalie Elphick, Ayushi Agrawal
 ##
 ## Script Goal: Optimize resolution parameter; check silhouette score
 ## distribution and decide the optimal resolution
 ##
 ## Usage example:
-## Rscript 08b_cluster_resolution_optimization_per_sample.R \
+## Rscript 05b_cluster_resolution_optimization_per_sample.R \
 ##  --input 'input_seurat_object.RDS' \  # Seurat object with multiple samples
 ##  --output '/output_directory' \       # Location for output files
 ##  --mode "scRNA" \                     # Is the input scRNA or CyTOF?
@@ -19,7 +19,7 @@
 ##  --cores 4                            # Number of cores to use
 ##  --sample 1                           # The nth sample to use as test data
 ##
-## Run "Rscript 08b_cluster_resolution_optimization_per_sample.R --help" for more information
+## Run "Rscript 05b_cluster_resolution_optimization_per_sample.R --help" for more information
 ###############################################################################
 
 
@@ -113,7 +113,7 @@ getDoParName()
 
 set.seed(332)
 options(warn = 1)
-options(future.globals.maxSize = 8000 * 1024^2)
+options(future.globals.maxSize = 20 * 1024^3)
 
 
 # create the results folders and all parent folders if they don't exist
@@ -124,6 +124,37 @@ if (!(dir.exists(opt$output))) {
 
 
 # Functions ---------------------------------------------------------------
+# get_valid_samples: This function checks if there are at least 
+# 3 samples with 100 or more cells. If this criterion is met, the function 
+# returns the sample names that have at least 100 cells. If the criteria fails,
+# NULL is returned and a warning is issued.
+get_valid_samples <- function(input, subject_ids) {
+  
+  # Summarize the number of cells per sample
+  sample_summary <- input@meta.data %>%
+    group_by(!!sym(subject_ids)) %>% # group by using specified subject_ids column
+    summarize(cell_count = n(), .groups = "drop") %>%
+    ungroup()
+  
+  # Filter samples to include only those with at least 100 cells
+  sufficient_samples <- sample_summary %>%
+    filter(cell_count >= 100) 
+  
+  # Check if there are at least 3 samples with >= 100 cells
+  if (nrow(sufficient_samples) < 3) {
+    warning("There are fewer than 3 samples with >= 100 cells.")
+    return(NULL) # Return NULL if the criterion is not met
+  }
+  
+  # Retrieve the sample names that meet the requirement
+  valid_samples <- sufficient_samples %>%
+    pull(!!sym(subject_ids))
+  
+  # Return the list of valid sample names 
+  message("There are sufficient samples. Returning the sample names that meet the criteria.")
+  return(valid_samples)
+}
+
 # prep_train: Prepare training data for random forest
 prep_train <- function(input,
                        subject_ids,
@@ -388,7 +419,29 @@ res_range <- c(seq(0.02,0.08,0.02), seq(0.1,1.2,0.1))
 sample_obj_id <- opt$metadata
 n_samples <- length(unique(input_rds@meta.data[[sample_obj_id]]))
 sample_names <- as.vector((unique(input_rds@meta.data[[sample_obj_id]])))
+
+# Check if opt$sample is greater than n_samples
+if (opt$sample > n_samples) {
+  stop(paste("Error: The specified sample number (", opt$sample, 
+             ") exceeds the number of available samples (", n_samples, ").", sep = ""))
+}
+
+# Get the sample name
 sam <- sample_names[opt$sample]
+
+# Get valid samples
+valid_sample_names <- get_valid_samples(input = input_rds, 
+                                  subject_ids = opt$metadata)
+if (is.null(valid_sample_names)) {
+  stop(paste0("ERROR: Unable to perform cluster resolution optimization for this data. ",
+              "There are less than 3 samples with at least 100 cells."))
+}
+
+# Check if sam is a valid sample
+if (!(sam %in% valid_sample_names)) {
+  stop(paste("Error: The specified sample number (", opt$sample, 
+             ") has fewer than 100 cells.", sep = ""))
+}
 
 
 # Main analysis ------------------------------------------------------------

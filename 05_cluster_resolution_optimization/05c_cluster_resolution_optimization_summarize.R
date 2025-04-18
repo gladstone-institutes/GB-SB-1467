@@ -1,19 +1,19 @@
 #!/usr/bin/env Rscript
 
 ###############################################################################
-## Project ID: YH_ZL02
+## Project ID: GB-SB-1467
 ## Authors: Ayushi Agrawal
 ##
 ## Script Goal: Compile results for optimize resolution parameter; check 
 ## silhouette score distribution and decide the optimal resolution
 ##
 ## Usage example:
-## Rscript 08c_cluster_resolution_optimization_summarize.R \
+## Rscript 05c_cluster_resolution_optimization_summarize.R  \
 ##  --input '/per_sample_results' \  # Location for per sample optimize resolution results
 ##  --output '/output_directory' \       # Location for output files
 ##  --output_prefix "outputs_scRNA_" \   # Prefix for output files
 ##
-## Run "Rscript 08c_cluster_resolution_optimization_summarize.R --help" for more information
+## Run "Rscript 05c_cluster_resolution_optimization_summarize.R  --help" for more information
 ###############################################################################
 
 

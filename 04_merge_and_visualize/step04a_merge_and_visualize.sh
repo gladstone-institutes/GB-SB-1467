@@ -25,7 +25,7 @@ output_prefix="gb_sb_1467_${npcs}pcs"
 
 # Run the R script
 singularity exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder.sif Rscript \
-$script_dir/04_merge_and_visualize/04_merge_and_visualize.R \
+$script_dir/04_merge_and_visualize/04a_merge_and_visualize.R \
 --input_dir $data_dir/results/02_doublet_removal \
 --metadata $data_dir/data/V25-03_Samples.csv \
 --output_dir "$output_dir" \
