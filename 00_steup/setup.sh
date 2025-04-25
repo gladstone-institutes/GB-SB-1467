@@ -15,7 +15,7 @@ vi sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/METADATA.txt
 
 exit
 
-# start the data transfer from 3-=day-transfer area to jain lab folder
+# start the data transfer from 30-day-transfer area to jain lab folder
 sft list-servers
 
 # login to the Gladstone data transfer node

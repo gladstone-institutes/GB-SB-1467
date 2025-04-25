@@ -280,58 +280,55 @@ run_sc_type <- function(custom_db=NA, tissue, db_prefix){
 # Read in the Seurat object
 data <- readRDS(opt$input)
 
-# Remove any previous normalization
-DefaultAssay(data) <- "RNA"
-data <- DietSeurat(data, assay = "RNA")
-
-# fix metatda
+# Fix metadata
 data$Condition_all <- data$Condition
 data$Condition <- gsub("^Het", "WT", data$Condition)
 data$Genotype_all <- data$Genotype
 data$Genotype <- gsub("^Het", "WT", data$Genotype)
 
-if(!is.na(opt$exclude_sample)){
+# Check for sample exclusion
+if (!is.na(opt$exclude_sample)) {
   print(table(data$Sample_name))
   print(paste0("Removing sample ", opt$exclude_sample))
-  data <- subset(data, subset = Sample_name==opt$exclude_sample, invert = TRUE)
+  data <- subset(data, subset = Sample_name == opt$exclude_sample, invert = TRUE)
   print(table(data$Sample_name))
-  # update the output folder and output prefix
+  
+  # Drop previous normalization
+  DefaultAssay(data) <- "RNA"
+  data <- DietSeurat(data, assay = "RNA")
+  
+  # Update output names
   opt$output <- paste0(opt$output, "_exclude_", opt$exclude_sample)
   opt$output_prefix <- paste0(opt$output_prefix, "_exclude_", opt$exclude_sample)
-  
 }
 
+# If SCT assay is missing, rerun normalization
+if (!"SCT" %in% Assays(data)) {
+  print("***** Running SCTransform normalization *****")
+  data <- SCTransform(data, vst.flavor = "v2", verbose = FALSE)
+}
+
+# Run integration and clustering
 if (!is.na(opt$batch_var)) {
   library(harmony)
   print(paste0("***** Correcting for batch effects using ", opt$batch_var, " *****"))
-  data <- SCTransform(data, vst.flavor = "v2")
-  data <- RunPCA(data,npcs = opt$ndim) %>%
-    RunHarmony(assay.use="SCT",
-               group.by.vars = opt$batch_var,
-               kmeans_init_nstart=20,
-               kmeans_init_iter_max=100) %>%
-    RunUMAP(reduction = "harmony", dims = 1:opt$ndim)
-  data <- FindNeighbors(
-    object = data,
-    dims = 1:opt$ndim,
-    reduction = "harmony"
-  )      
-  data <- FindClusters(object = data, resolution = opt$resolution)
-  print("***** Clustering and Normalization completed! (Harmony reduction) *****")
-  
+  data <- RunPCA(data, npcs = opt$ndim)
+  data <- RunHarmony(data,
+                     assay.use = "SCT",
+                     group.by.vars = opt$batch_var,
+                     kmeans_init_nstart = 20,
+                     kmeans_init_iter_max = 100)
+  data <- RunUMAP(data, reduction = "harmony", dims = 1:opt$ndim)
+  data <- FindNeighbors(data, dims = 1:opt$ndim, reduction = "harmony")
 } else {
   print("***** No batch variable provided, skipping batch correction *****")
-  data <- SCTransform(data, vst.flavor = "v2", verbose = FALSE)
-  print("***** SCT normalization completed! *****")
   data <- RunPCA(data, npcs = 50, assay = "SCT")
-  data <- FindNeighbors(
-    object = data,
-    dims = 1:opt$ndim,
-    verbose = TRUE)
-  data <- FindClusters(object = data, resolution = opt$resolution)
-  data <- RunUMAP(object = data, dims = 1:opt$ndim)
-  print("***** Clustering completed! *****")
+  data <- RunUMAP(data, dims = 1:opt$ndim)
+  data <- FindNeighbors(data, dims = 1:opt$ndim)
 }
+
+data <- FindClusters(data, resolution = opt$resolution)
+print("***** Clustering completed! *****")
 
 
 # create the output directory
@@ -346,7 +343,7 @@ source("/opt/sc-type/R/sctype_score_.R")
 # modify the custom to sctype format
 opt$custom_db <- generate_custom_sctype_db(opt$custom_db)
 
-# run sctype with the intestine markers on sctype portal
+# run sctype 
 # https://sctype.app/database.php
 sctype_scores <- run_sc_type(opt$custom_db, 
                              opt$tissue, 
@@ -379,6 +376,7 @@ saveRDS(data,
           "_clustered_and_cell_typed.rds"
         )
 )
+print("***** sctype complete and saved Seurat object! *****")
 
 
 # UMAPs for all metadata variables ---------------------------------------------
@@ -426,7 +424,7 @@ for (meta in meta_cols) {
 
 
 
-# UMAP with cell type labels --------------------------------------------------------------
+# custom UMAPs with cell type labels -------------------------------------------
 pdf(file.path(opt$output, paste0(opt$output_prefix, "_seurat_clusters_labeled_UMAP.pdf")),
     width = 10,
     height = 7
@@ -440,7 +438,7 @@ print(DimPlot(data,
 ))
 dev.off()
 
-pdf(file.path(paste0(opt$output, "/", opt$output_prefix, "_ScType_celltype_small_intestine_labeled_UMAP.pdf")),
+pdf(file.path(opt$output, paste0(opt$output_prefix, "_ScType_celltype_CellMarker2.0_labeled_UMAP.pdf")),
     width = 10,
     height = 7
 )
@@ -453,7 +451,35 @@ print(DimPlot(data,
 ))
 dev.off()
 
+pdf(file.path(opt$output, paste0(opt$output_prefix, 
+                                 "_seurat_clusters_split_sample_UMAP.pdf")),
+    width = 26,
+    height = 20)
+print(DimPlot(data,
+              raster = FALSE,
+              order = TRUE,
+              label = FALSE,
+              group.by = "seurat_clusters",
+              split.by = "SampleID",
+              reduction = "umap",
+              ncol = 4
+) + theme(legend.position = "right"))
+dev.off()
 
+pdf(file.path(opt$output, paste0(opt$output_prefix, 
+                                 "_seurat_clusters_split_condition_UMAP.pdf")),
+    width = 26,
+    height = 7)
+print(DimPlot(data,
+              raster = FALSE,
+              order = TRUE,
+              label = TRUE,
+              group.by = "seurat_clusters",
+              split.by = "Condition",
+              reduction = "umap",
+              ncol = 4
+) + theme(legend.position = "right"))
+dev.off()
 
 
 # Check sample bias ------------------------------------------------------------
@@ -540,23 +566,6 @@ print(
     )
 )
 dev.off()
-
-
-
-
-# Find Markers --------------------------------------------------------------
-print("**** FindAllMarkers start ****")
-data <- PrepSCTFindMarkers(data)
-# Find differentially expressed genes for identifying the clusters
-marker_res <- FindAllMarkers(data, 
-                             assay = "SCT", 
-                             slot = "data", 
-                             test.use = "wilcox",
-                             min.pct = 0.25)
-marker_res %>%
-  write.csv(., paste0(opt$output, "/", opt$output_prefix, "_FindAllMarkers_marker_genes_per_cluster.csv"), 
-            row.names = FALSE)
-print("**** FindAllMarkers end ****")
 
 
 
