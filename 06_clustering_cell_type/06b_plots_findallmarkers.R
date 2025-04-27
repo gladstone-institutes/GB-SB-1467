@@ -45,6 +45,7 @@ if (is.na(opt$input) | is.na(opt$output)) {
 library(dplyr)
 library(Seurat)
 library(ggplot2)
+library(presto)
 
 #set seed
 set.seed(42)

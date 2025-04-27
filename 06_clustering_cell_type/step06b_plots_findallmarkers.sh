@@ -5,7 +5,7 @@
 #$ -pe smp 1
 #$ -l mem_free=200G
 #$ -l scratch=100G
-#$ -l h_rt=16:00:00
+#$ -l h_rt=10:00:00
 #$ -t 1-21
 #$ -j yes
 
@@ -49,7 +49,7 @@ res=$(echo $params | cut -d' ' -f2)
 echo "Running for PCs=$ndim and resolution=$res"
 
 # Run the R script via Singularity
-singularity exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder.sif \
+singularity exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder-presto.sif \
 Rscript $script_dir/06_clustering_cell_type/06b_plots_findallmarkers.R \
     --input $data_dir/results/06_clustering_cell_type/${ndim}PC_${res}res/gb_sb_1467_${ndim}PC_${res}res_clustered_and_cell_typed.rds \
     --output $data_dir/results/06_clustering_cell_type/${ndim}PC_${res}res \
