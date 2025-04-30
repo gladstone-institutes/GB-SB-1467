@@ -29,27 +29,28 @@ require(gdata)
 
 
 # Define input variables -------------------------------------------------------
-pca_dim <- c(15,20,30) 
+pca_dim <- c(#15,20,
+             30) 
 cluster_res <- c(0.08, 
-                 0.1, 
-                 0.2,
-                 0.3,
-                 0.4,
-                 0.5,
-                 0.6
+                 #0.1, 
+                 0.2#,
+                 #0.3,
+                 #0.4,
+                 #0.5,
+                 #0.6
                  )
 
 ref_genotype <- "WT - Vitamin B3"
 
 
 # set directory paths ----------------------------------------------------------
-basedir <- "/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/results"
-for(pc in pca_dim ){
-	for(res in cluster_res){
+basedir <- "/gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/results/"
+for(pc in 1:length(pca_dim)){
+	for(res in 1:length(cluster_res)){
 	
-indir <- file.path(basedir, "06_clustering_cell_type/",pc,"PC_",cluster_res,"res")
-outdir <- file.path(basedir, 
-                    "08_between_cluster_association_genotype/",pc,"PC_",res,"res")
+indir <- paste0(basedir, "06_clustering_cell_type/",pca_dim[pc],"PC_",cluster_res[res],"res/")
+outdir <- paste0(basedir, 
+                    "08_between_cluster_association_genotype/",pca_dim[pc],"PC_",cluster_res[res],"res/")
 
 #create the output directory if it doesn't exist
 if(!(dir.exists(outdir))){
@@ -58,18 +59,19 @@ if(!(dir.exists(outdir))){
 setwd(outdir)
 
 # Load the Seurat object -------------------------------------------------------
-dat <- readRDS(file.path(indir,
+dat <- readRDS(paste0(indir,
                          paste0("gb_sb_1467_",
-                         		pc,
+                         		pca_dim[pc],
                                 "PC_",
-                                res,
+                                cluster_res[res],
                                 "res_clustered_and_cell_typed.rds")))
 
 
 # Main analysis ----------------------------------------------------------------
 # read in the counts if they already exist
-if(file.exists(paste0("gb_sb_1467_",pc,"PC_",res,"res_counts_per_sample_per_cluster.csv")){
-  counts <- read.csv(paste0("gb_sb_1467_",pc,"PC_",res,"res_counts_per_sample_per_cluster.csv"), header = T)
+if(file.exists(paste0(indir,"gb_sb_1467_",pca_dim[pc],"PC_",cluster_res[res],"res_counts_per_sample_per_cluster.csv")))
+{
+  counts <- read.csv(paste0(indir,"gb_sb_1467_",pca_dim[pc],"PC_",cluster_res[res],"res_counts_per_sample_per_cluster.csv"), header = T)
 } else{
   ##the number of cells in each mouse in each cluster
   all_metadata <- dat[[]]
@@ -90,17 +92,17 @@ if(file.exists(paste0("gb_sb_1467_",pc,"PC_",res,"res_counts_per_sample_per_clus
   colnames(smp_cluster_counts)[1:3] <- c("sample_id","animal_model","cluster_id")
   smp_cluster_counts <- smp_cluster_counts[order(smp_cluster_counts$cluster_id),]
   write.csv(smp_cluster_counts, 
-            file = paste0("gb_sb_1467_",pc,"PC_",res,"res_counts_per_sample_per_cluster.csv"),
+            file = paste0("gb_sb_1467_",pca_dim[pc],"PC_",cluster_res[res],"res_counts_per_sample_per_cluster.csv"),
             row.names = FALSE)
-  counts <- read.csv(paste0("gb_sb_1467_",pc,"PC_",res,"res_counts_per_sample_per_cluster.csv"), header = T)
+  counts <- read.csv(paste0(indir,"gb_sb_1467_",pca_dim[pc],"PC_",cluster_res[res],"res_counts_per_sample_per_cluster.csv"), header = T)
 }
 
 pheno <- counts %>%
-  select(sample_id, animal_model, total_numbers_of_cells_per_sample) %>%
+  select(sample_id, animal_model, total_cells_per_sample) %>%
   unique()
 rownames(pheno) <- seq(1,nrow(pheno))
 Clusters <- unique(counts$cluster_id)
-
+Clusters <- sort(Clusters)
 ##function to estimate the change in the odds of cluster membership from the reference to the other genotypes
 estimateCellStateChange <- function(k, counts, pheno) {
   print(paste("Cluster", k))
@@ -113,15 +115,15 @@ estimateCellStateChange <- function(k, counts, pheno) {
   cluster_counts %<>% 
     arrange(animal_model) %>% 
     mutate(proportion=
-             number_of_cells_per_sample_in_cluster/total_numbers_of_cells_per_sample)
+             number_of_cells_per_sample_in_cluster/total_cells_per_sample)
   
    
   ##plot proportion of cells per genotype
-  pdf(paste0("proportion_of_cells_per_genotype_cluster_",k,"_",pc,"PC_",res,"res.pdf"))
+  pdf(paste0(outdir,"proportion_of_cells_per_genotype_cluster_",k,"_",pca_dim[pc],"PC_",cluster_res[res],"res.pdf"))
   print(ggplot(cluster_counts, 
                aes(x=animal_model, 
-                   y=((number_of_cells_per_sample_in_cluster+0.02)/total_numbers_of_cells_per_sample),
-                   colour = Age)) +
+                   y=((number_of_cells_per_sample_in_cluster+0.02)/total_cells_per_sample),
+                   colour = animal_model)) +
           geom_boxplot(outlier.color = NA) +
           geom_jitter(position=position_jitterdodge(0.1)) +
           scale_y_log10() +
@@ -134,7 +136,7 @@ estimateCellStateChange <- function(k, counts, pheno) {
   cluster_counts$animal_model <- relevel(cluster_counts$animal_model, ref=ref_genotype)
   
   formula1=as.formula(paste0("cbind(number_of_cells_per_sample_in_cluster, ",
-                             "total_numbers_of_cells_per_sample - ",
+                             "total_cells_per_sample - ",
                              "number_of_cells_per_sample_in_cluster) ~ ",
                              "(1 | sample_id) + animal_model"))
   glmerFit <- glmer(formula1, data = cluster_counts, family = binomial, nAGQ=10)
@@ -142,7 +144,12 @@ estimateCellStateChange <- function(k, counts, pheno) {
   sglmerFit1 <- summary(glmerFit)
   TempRes1 <- (sglmerFit1$coefficients[-1,])
   
-  return(TempRes1[1,])
+  
+  
+  return(TempRes1)
+
+
+
 }
 
 #run the log odds function for all clusters
@@ -174,10 +181,10 @@ ClusterRes[,"p.adjust-WT+VitaminB3_vs_WT-VitaminB3"] = p.adjust_all[(nrow(Cluste
 ##output the results
 ClusterRes <- ClusterRes[,!(colnames(ClusterRes) %in% c("X7","X8","X9"))]
 print(ClusterRes)
-write.csv(ClusterRes, file = paste0("log_odds_ratio_per_genotype_per_cluster", 
+write.csv(ClusterRes, file = paste0(outdir,"log_odds_ratio_per_genotype_per_cluster", 
                                     "_reference_genotype_", "WT-VitaminB3",
-                                    "_",pc,"PC",
-                                    "_",res,"res.csv"))
+                                    "_",pca_dim[pc],"PC",
+                                    "_",cluster_res[res],"res.csv"))
 
 
 
@@ -185,9 +192,9 @@ write.csv(ClusterRes, file = paste0("log_odds_ratio_per_genotype_per_cluster",
 ClusterRes$cluster_id <- rownames(ClusterRes)
 x1 <- ClusterRes[,c("cluster_id", 
                                  "logOddsRatio_KO-VitaminB3_vs_WT-VitaminB3", 
-                                 "standardError_KO-VitaminB3_vs_WT-VitaminB3",
+                                 "standardError_KO-VitaminB3_vs_WT-VitaminB3", 
                                  "pvalue_KO-VitaminB3_vs_WT-VitaminB3",
-                                 "p.adjust_KO-VitaminB3_vs_WT-VitaminB3")]
+                                 "p.adjust-KO-VitaminB3_vs_WT-VitaminB3")]
 x1$genotype <- "KO-VitaminB3"
 colnames(x1) <- c("cluster_id","logOddsRatio","standardError","pvalue","p.adjust","genotype")
 
@@ -202,24 +209,25 @@ colnames(x2) <- c("cluster_id","logOddsRatio","standardError","pvalue","p.adjust
 
 x3 <- ClusterRes[,c("cluster_id", 
                     "logOddsRatio_WT+VitaminB3_vs_WT-VitaminB3", 
-                    "standardError_logOddsRatio_WT+VitaminB3_vs_WT-VitaminB3",
+                    "standardError_WT+VitaminB3_vs_WT-VitaminB3",
                     "pvalue_WT+VitaminB3_vs_WT-VitaminB3",
                     "p.adjust-WT+VitaminB3_vs_WT-VitaminB3")]
 
-x3$genotype <- "-WT+VitaminB3"
+x3$genotype <- "WT+VitaminB3"
 colnames(x3) <- c("cluster_id","logOddsRatio","standardError","pvalue","p.adjust","genotype")
 
 
 ClusterRes_plot <- rbind(x1,x2,x3)
 rownames(ClusterRes_plot) <- seq(1,nrow(ClusterRes_plot))
-ClusterRes_plot$cluster_id <- factor(ClusterRes_plot$cluster_id,
-                                     levels = paste0("Cluster",seq(1,max(Clusters))))
+ClusterRes_plot$cluster_id <- factor(ClusterRes_plot$cluster_id#,
+                                     #levels = paste0("Cluster",seq(1,max(Clusters)))
+                                     )
 
 #make the box plot for each cluster
 #add label for p.adjusted < 0.05
 label.df <- ClusterRes_plot[ClusterRes_plot$p.adjust < 0.05,]
 if(nrow(label.df) >0 ){
-  label.df$logOddsRatio <- 1.5
+  # label.df$logOddsRatio[label.df$logOddsRatio< (-2)] <- (-1.5)
   print(paste0("Found ", nrow(label.df) ," associations with p.adjusted < 0.05."))
 } else {
   print("No association has p.adjusted < 0.05.")
@@ -227,15 +235,15 @@ if(nrow(label.df) >0 ){
 
 label.df2 <- ClusterRes_plot[ClusterRes_plot$pvalue < 0.05,]
 if(nrow(label.df2) >0 ){
-  label.df2$logOddsRatio <- 1.5
+#label.df2$logOddsRatio[label.df2$logOddsRatio< (-2)] <- (-1.5)
   print(paste0("Found ", nrow(label.df2) ," associations with pvalue < 0.05."))
 } else {
   print("No association has pvalue < 0.05.")
 }
 
 
-pdf(paste0("log_odds_boxplot_with_padjusted_reference_genotype_", ref_genotype,
-           "_",pc,"PC_",res,"res.pdf"),
+pdf(paste0(outdir,"log_odds_boxplot_with_padjusted_reference_genotype_", ref_genotype,
+           "_",pca_dim[pc],"PC_",cluster_res[res],"res.pdf"),
     height = 30,
     width = 50
 )
@@ -257,8 +265,8 @@ ggplot(ClusterRes_plot,
 dev.off()
 
 
-pdf(paste0("log_odds_boxplot_with_raw_pvalue_reference_genotype_", ref_genotype,
-           "_",pc,"PC_",res,"res.pdf"),
+pdf(paste0(outdir,"log_odds_boxplot_with_raw_pvalue_reference_genotype_", ref_genotype,
+           "_",pca_dim[pc],"PC_",cluster_res[res],"res.pdf"),
     height = 30,
     width = 50
 )
@@ -285,6 +293,70 @@ ggplot(ClusterRes_plot,
   xlab("") +
   ylab(paste0("log odds ratio: animal model vs ", ref_genotype)) 
 dev.off()
+
+##removing cluster 15 for res=0.08 and cluster 26 for res=0.02
+if (res==1){
+ClusterRes_plot <- ClusterRes_plot %>% dlyr::filter(cluster_id != "Cluster15")
+}
+if (res==2){
+ClusterRes_plot <- ClusterRes_plot %>% dlyr::filter(cluster_id != "Cluster26")
+}
+
+
+pdf(paste0(outdir,"log_odds_boxplot_with_padjusted_reference_genotype_", ref_genotype,
+           "_",pca_dim[pc],"PC_",cluster_res[res],"res_noOutlierCluster.pdf"),
+    height = 30,
+    width = 50
+)
+ggplot(ClusterRes_plot, 
+       aes(x=genotype, y=logOddsRatio, fill=genotype)) +
+  geom_hline(yintercept=0) +
+  geom_bar(stat="identity", color="black", 
+           position=position_dodge()) +
+  geom_errorbar(aes(ymin=logOddsRatio-standardError, ymax=logOddsRatio+standardError), width=.2,
+                position=position_dodge(.9)) +
+  facet_wrap(~ cluster_id) +
+  theme_bw() +
+  theme(legend.position = "none",
+        text = element_text(size = 40)) +
+  geom_text(data = label.df, label = "*",
+            vjust = 1.5, size = 30) +
+  xlab("") +
+  ylab(paste0("log odds ratio: animal model vs ", ref_genotype))
+dev.off()
+
+
+pdf(paste0(outdir,"log_odds_boxplot_with_raw_pvalue_reference_genotype_", ref_genotype,
+           "_",pca_dim[pc],"PC_",cluster_res[res],"res_noOutlierCluster.pdf"),
+    height = 30,
+    width = 50
+)
+ggplot(ClusterRes_plot, 
+       aes(x=genotype, y=logOddsRatio, fill=genotype)) +
+  geom_hline(yintercept=0) +
+  geom_bar(stat="identity", color="black", 
+           position=position_dodge()) +
+  geom_errorbar(aes(ymin=logOddsRatio-standardError, ymax=logOddsRatio+standardError), width=.2,
+                position=position_dodge(.9)) +
+  facet_wrap(~ cluster_id) +
+  theme_bw() +
+  theme(legend.position = "none",
+        text = element_text(size = 40)) +
+  geom_text(data = label.df2[label.df2$pvalue < 0.001,], label = "***",
+            col = "darkgrey", vjust = 1.5,
+            size = 30) +
+  geom_text(data = label.df2[label.df2$pvalue > 0.001 & label.df2$pvalue < 0.01,], label = "**",
+            col = "darkgrey", vjust = 1.5,
+            size = 30) +
+  geom_text(data = label.df2[label.df2$pvalue > 0.01 & label.df2$pvalue < 0.05,], label = "*",
+            col = "darkgrey", vjust = 1.5,
+            size = 30) +
+  xlab("") +
+  ylab(paste0("log odds ratio: animal model vs ", ref_genotype)) 
+dev.off()
+
+
+
 }
 	}
 

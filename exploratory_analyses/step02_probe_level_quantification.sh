@@ -16,14 +16,12 @@ export APPTAINER_BINDPATH="$data_dir"
 
 # Run the R script
 singularity exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder.sif Rscript \
-$script_dir/exploratory_analyses/check_probe_level_quantification.R \
---samplesheet $script_dir/02_doublet_removal/input.csv \
---metadata $data_dir/data/V25-03_Samples.csv \
---output_dir $data_dir/results/exploratory_analyses/probe_level_quantification \
+$script_dir/exploratory_analyses/02_probe_level_quantification.R \
+--input_dir $data_dir/results/exploratory_analyses/01_preprocess_probe_data_per_sample \
+--output_dir $data_dir/results/exploratory_analyses/02_probe_level_quantification \
 --output_prefix "gb_sb_1467_probes_30pcs" \
 --project "gb_sb_1467" \
---npcs 30 \
---subset_cells $data_dir/results/04_merge_and_visualize/30PCs/gb_sb_1467_30pcs_post_qc_cell_ids.csv
+--npcs 30
 
 
 ## End-of-job summary, if running as a job

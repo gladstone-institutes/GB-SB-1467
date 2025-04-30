@@ -6,29 +6,23 @@
 ## Script Goal: Check probe level quantification of the reads for Naxd for each sample
 ##
 ## Usage example:
-## Rscript check_probe_level_quantification.R \
-## --samplesheet input.csv \              # Csv file containing the cellranger multi output location
-## --metadata sample_metadata.csv \       # Sample metadata sheet
-## --output_dir 07_merge_and_visualize \  # Output directory
+## Rscript 02_probe_level_quantification.R \
+## --input_dir probe_data_per_sample \    # Directory containing the QC filtered Seurat objects
+## --output_dir 02_probe_quantification \ # Output directory
 ## --output_prefix "GB-SB-1467" \         # Prefix for all output data and files
 ## --project "GB-SB-1467" \               # Project ID
 ## --exclude_samples sample1,sample2 \    # Comma separated list of samples to exclude (optional)
-## --npcs 15 \                            # Number of PCs to use for UMAP (optional)
-## --subset_cells cell_ids.csv            # cell ids of filtered cells per sample
+## --npcs 15                              # Number of PCs to use for UMAP (optional)
 ## 
-## Run "Rscript check_probe_level_quantification.R --help" for more information
+## Run "Rscript 02_probe_level_quantification.R --help" for more information
 #####################################################################################################
 
 # Get input arguments -------------------------------------------------------------------------------
 library(optparse)
 option_list <- list(
-  make_option("--samplesheet",
+  make_option("--input_dir",
               action = "store", default = NA, type = "character",
-              help = "Path to csv file containing the cellranger multi output location (required)"
-  ),
-  make_option("--metadata",
-              action = "store", default = NA, type = "character",
-              help = "A CSV sample metadata sheet (required)"
+              help = "Directory containing the QC filtered Seurat objects (required)"
   ),
   make_option("--output_dir",
               action = "store", default = NA, type = "character",
@@ -49,18 +43,13 @@ option_list <- list(
   make_option("--npcs",
               action = "store", default = 20, type = "integer",
               help = "Number of PCs to use for UMAP, default is 20 (optional)"
-  ),
-  make_option("--subset_cells",
-              action = "store", default = NA, type = "integer",
-              help = "Path to subset file (CSV format) containing cell ids of filtered cells per sample (required)."
   )
 )
 # Read in the arguments
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # Check that all required arguments are present
-if (is.na(opt$samplesheet) | is.na(opt$metadata) | is.na(opt$output_dir) | is.na(opt$output_prefix) | 
-    is.na(opt$project) | is.na(opt$subset_cells)) {
+if (is.na(opt$input_dir) | is.na(opt$output_dir) | is.na(opt$output_prefix) | is.na(opt$project)) {
   stop("***** ERROR: Missing required arguments! *****")
 }
 
@@ -80,49 +69,24 @@ if (!dir.exists(opt$output_dir)) {
 #can access larger global variables
 options(future.globals.maxSize = 60 * 1024^3)
 
-# Read in the metadata
-meta_data <- read.csv(opt$metadata)
-meta_data$SampleID <- paste0("sample", meta_data$SampleID)
-
 # Read in the samplesheet
-samples_list <- read.csv(opt$samplesheet)
-samples_list <- samples_list$input
-
-# Read in the cell ids to keep
-keep_cell_ids <- read.csv(opt$subset_cells)
+samples_list <- list.files(opt$input_dir, pattern = "\\.rds$", full.names = TRUE, recursive=FALSE)
 
 
 
 
-# Merge the data into a singel Seurat object --------------------------------------------------------------
+
+# Merge the data into a single Seurat object --------------------------------------------------------------
 for(i in 1:length(samples_list)){
   this_sample_name <- basename(samples_list[i])
-  print(paste0("Processing sample ", this_sample_name))
+  print(paste0("Processing ", this_sample_name))
   
   # Read in the Seurat object
-  pre <- Read10X_h5(file.path(samples_list[i], "count/sample_raw_probe_bc_matrix.h5"))
-  this_obj <- CreateSeuratObject(pre, min.cells = 4)
-  rm(pre)
+  this_obj <- readRDS(samples_list[i])
   
   # Remove any previous normalization
   DefaultAssay(this_obj) <- "RNA"
   this_obj <- DietSeurat(this_obj, assay = "RNA")
-  
-  # rename cells
-  this_obj <- RenameCells(object = this_obj, add.cell.id = this_sample_name)
-  
-  # Calculate the percentage of mitochondrial genes
-  this_obj[["percent.mt"]] <- PercentageFeatureSet(this_obj, pattern = "^mt-")
-  
-  # filter for QC'ed cells from main analysis
-  keep <- keep_cell_ids[keep_cell_ids$SampleID == this_sample_name, "cell_id"]
-  this_obj <- subset(this_obj, cells = keep)
-  
-  # Add the sample metadata to the Seurat object
-  this_meta <- as.data.frame(meta_data[meta_data$SampleID == this_sample_name,])
-  this_meta <- this_meta[rep(1, ncol(this_obj)), ]
-  rownames(this_meta) <- colnames(this_obj)
-  this_obj <- AddMetaData(object = this_obj, metadata =this_meta)
   
   # merge into a single Seurat object
   if(i == 1){
@@ -136,12 +100,6 @@ for(i in 1:length(samples_list)){
   }
   rm(this_obj)
 }
-
-# Fix metadata
-data$Condition_all <- data$Condition
-data$Condition <- gsub("^Het", "WT", data$Condition)
-data$Genotype_all <- data$Genotype
-data$Genotype <- gsub("^Het", "WT", data$Genotype)
 
 print("Merged Seurat object:")
 print(data)
@@ -213,7 +171,12 @@ plot_metadata <- function(sc_dat, metadata_variable){
 }
 
 # UMAPs for the metadata variables
-meta_cols <- colnames(meta_data)
+# get the metadata columns that not numeric
+meta_cols <- c(names(data@meta.data)[!sapply(data@meta.data, is.numeric)],
+               "Weight.mg",
+               "GEM.Well")
+# Exclude "orig.ident"
+meta_cols <- meta_cols[meta_cols != "orig.ident"]
 data@meta.data[meta_cols] <- lapply(data@meta.data[meta_cols], as.factor)
 lapply(meta_cols, function(col_name) {
   plot_metadata(data, col_name)
@@ -305,7 +268,6 @@ dev.off()
 
 
 print("***** Visualization completed! *****")
-
 
 
 
