@@ -2,9 +2,9 @@
 #$ -cwd    
 #$ -o /gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/tmp/
 #$ -e /gladstone/jain/boinformatics-collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/tmp/
-#$ -pe smp 2
+#$ -pe smp 1
 #$ -l mem_free=200G
-#$ -l scratch=100G
+#$ -l scratch=150G
 #$ -l h_rt=10:00:00
 #$ -j yes
 
@@ -18,10 +18,7 @@ export APPTAINER_BINDPATH="$data_dir"
 singularity exec $container_dir/seurat-v5-2-1_soupx-1-6-2_doubletfinder.sif Rscript \
 $script_dir/exploratory_analyses/02_probe_level_quantification.R \
 --input_dir $data_dir/results/exploratory_analyses/01_preprocess_probe_data_per_sample \
---output_dir $data_dir/results/exploratory_analyses/02_probe_level_quantification \
---output_prefix "gb_sb_1467_probes_30pcs" \
---project "gb_sb_1467" \
---npcs 30
+--output_dir $data_dir/results/exploratory_analyses/02_probe_level_quantification
 
 
 ## End-of-job summary, if running as a job
