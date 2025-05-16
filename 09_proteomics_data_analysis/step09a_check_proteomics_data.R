@@ -31,7 +31,7 @@ cell_data <- input_file %>%
 #rownames(cell_data) <- cell_data$`Master accession number`
 #keep only samples as columns
 cell_data <- cell_data[,(colnames(cell_data) %in% LETTERS[1:16])]
-colnames(cell_data) <- substr(colnames(cell_data), 8, nchar(colnames(cell_data)))
+colnames(cell_data) <- paste0("Sample", colnames(cell_data))
 cell_data <- as.data.frame(lapply(cell_data, function(x) as.numeric(as.character(x))))
 
 # Calculate log intensities
@@ -41,10 +41,10 @@ log_intensities <- log2(cell_data + 1)  # Adding 1 to avoid log(0)
 pdf("results/09_proteomics_data_analysis/proteomics_data_boxplot.pdf", width = 14)
 print(ggplot(data = melt(log_intensities), aes(x=variable, y=value)) + 
         geom_boxplot(fill = "lightblue", color = "black") +
-        labs(title = "Box Plots of Log Intensities per Replicate (Cell Proteomics Data)",
+        labs(title = "Box Plots of Log Intensities per Sample (Proteomics Data)",
              x = "Sample", y = "Log Intensity") +
         theme_bw() +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        theme(axis.text.x = element_text(angle = 45, vjust = 0.5),
               plot.title = element_text(face = "bold", hjust = 0.5)))
 dev.off()
 

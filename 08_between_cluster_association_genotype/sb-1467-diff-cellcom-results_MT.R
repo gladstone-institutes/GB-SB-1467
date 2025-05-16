@@ -239,6 +239,11 @@ logodds_optimized_norm_factors_likelihood_test_design <- function(counts_res, ph
 require(edgeR)
 require(lme4)
 require(Rsolnp)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(matrixStats)
+
 
 
 
@@ -275,6 +280,8 @@ pheno_data %<>% mutate(animal_model = as.factor(animal_model),
 
 res <- logodds_optimized_norm_factors_likelihood_test_design(counts_res, pheno_data)
 res_tmm <- logodds_tmm_norm_factors_design(counts_res, pheno_data)
+
+
 res$results %>% write.csv(.,
                   "gb_sb_1467_30PC_0.08res_normalized_log_odds_diff_comp.csv",
                   row.names = F)
@@ -325,3 +332,235 @@ for(c in 0:15) {
           theme_bw())
   dev.off()
 }
+
+
+library(paletteer)
+
+pdf(paste0("gb_sb_1467_proportion_of_cells_per_condition_all_cluster_",30,"PC_res_","0_08.pdf"))
+  print(ggplot(full_count_data, 
+               aes(x=as.factor(animal_model.x), 
+                   y=((number_of_cells_per_sample_in_cluster+0.02)/(total_cells_per_sample.x*optim_factor)),
+                   fill=as.factor(cluster_id))) +
+          geom_bar(stat = "identity") +
+          ylab("normalized proportion of cells per condition")+
+          xlab("cluster id") +
+          ggtitle(paste0("All clusters")) +
+          scale_color_manual(values = paletteer_d("ggsci::category20_d3")[1:16])+
+          theme_bw())
+  dev.off()
+  
+setwd("/Volumes/Jain-Boinformatics-Collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/results/08_between_cluster_association_genotype/30PC_0.08res/log_odds_w_normalization/gb_sb_1467_proportion_between_condition_boxplots_scatterplots")
+#WT - B3 vs KO - B3
+##WT - B3 vs WT + B3
+##KO + B3 vs KO - B3
+##KO + B3 vs WT - B3
+cols <- c('orange','#66CCFF', '#009933', 'gold')
+cond1="KO + Vitamin B3"
+cond2="KO - Vitamin B3"
+temp_data <- full_count_data %>% filter(animal_model.x %in% c(cond2,cond1))
+
+###logOdds plots
+pheno_data %<>% mutate(animal_model = as.factor(animal_model),
+                       animal_model = relevel(animal_model, ref = "KO - Vitamin B3"))
+
+res <- logodds_optimized_norm_factors_likelihood_test_design(counts_res, pheno_data)
+all_results <- res$results 
+comp_results <- all_results %>% dplyr::filter(comparison %in% "groupKO + Vitamin B3")
+ comp_results$cluster <-NA
+for (c in 1:16){
+comp_results$cluster[c] <-  strsplit(comp_results$cluster_id, "_")[[c]][2]
+}
+#plot
+
+pdf(paste0("gb_sb_1467_proportion_of_cells_between_condition_all_cluster_",30,"PC_res_","0_08_",cond1,"_vs_",cond2,".pdf"), width=10)
+   p1<- (ggplot(temp_data, 
+               aes(y=as.factor(cluster_id), 
+                   x=((number_of_cells_per_sample_in_cluster+0.02)/(total_cells_per_sample.x*optim_factor)),
+                   fill=as.factor(animal_model.x))) +
+          geom_boxplot() +
+          xlab("normalized proportion of cells per condition")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_fill_manual(values = cols[c(1,2)])+  
+          labs(fill='Condition')+
+          theme_bw())
+ 
+   
+
+  p2<- (ggplot(comp_results, 
+               aes(y=as.numeric(cluster), 
+                   x=estimates,
+                   color=as.numeric(estimates_significance)))+
+           geom_point(aes(colour = cut(estimates_significance, c(0,0.1)), size=abs(estimates), fill=ifelse(as.numeric(estimates_significance) <=0.1, "darkred","grey"))) +
+           geom_vline(xintercept=0, lty="dashed", color="grey81")+
+          xlab("logOR")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_y_continuous(breaks = seq(0,15,1))+
+          theme_bw()+ theme(legend.position = "none")
+          )
+
+  
+  p2+p1
+
+dev.off()
+  ### 
+
+ 
+###
+ 
+  
+cond1="KO + Vitamin B3"
+cond2="WT - Vitamin B3"
+temp_data <- full_count_data %>% filter(animal_model.x %in% c(cond2,cond1))
+
+###logOdds plots 
+pheno_data %<>% mutate(animal_model = as.factor(animal_model),
+                       animal_model = relevel(animal_model, ref = "WT - Vitamin B3"))
+
+res <- logodds_optimized_norm_factors_likelihood_test_design(counts_res, pheno_data)
+all_results <- res$results 
+comp_results <- all_results %>% dplyr::filter(comparison %in% "groupKO + Vitamin B3")
+comp_results$cluster <-NA
+for (c in 1:16){
+comp_results$cluster[c] <-  strsplit(comp_results$cluster_id, "_")[[c]][2]
+}
+#plot
+pdf(paste0("gb_sb_1467_proportion_of_cells_between_condition_all_cluster_",30,"PC_res_","0_08_",cond1,"_vs_",cond2,".pdf"), width=10)
+   p1<- (ggplot(temp_data, 
+               aes(y=as.factor(cluster_id), 
+                   x=((number_of_cells_per_sample_in_cluster+0.02)/(total_cells_per_sample.x*optim_factor)),
+                   fill=as.factor(animal_model.x))) +
+          geom_boxplot() +
+          xlab("normalized proportion of cells per condition")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_fill_manual(values = cols[c(2,3)])+  
+          labs(fill='Condition')+
+          theme_bw())
+ 
+   
+
+  p2<- (ggplot(comp_results, 
+               aes(y=as.numeric(cluster), 
+                   x=estimates,
+                   color=as.numeric(estimates_significance)))+
+           geom_point(aes(colour = cut(estimates_significance, c(0,0.1)), size=abs(estimates), fill=ifelse(as.numeric(estimates_significance) <=0.1, "darkred","grey"))) +
+           geom_vline(xintercept=0, lty="dashed", color="grey81")+
+          xlab("logOR")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_y_continuous(breaks = seq(0,15,1))+
+          theme_bw()+ theme(legend.position = "none")
+          )
+
+  
+  p2+p1
+
+dev.off()
+
+ 
+  ### 
+
+cond1="WT + Vitamin B3"
+cond2="WT - Vitamin B3"
+temp_data <- full_count_data %>% filter(animal_model.x %in% c(cond2,cond1))
+
+###logOdds plots 
+pheno_data %<>% mutate(animal_model = as.factor(animal_model),
+                       animal_model = relevel(animal_model, ref = "WT - Vitamin B3"))
+
+res <- logodds_optimized_norm_factors_likelihood_test_design(counts_res, pheno_data)
+all_results <- res$results 
+comp_results <- all_results %>% dplyr::filter(comparison %in% "groupWT + Vitamin B3")
+comp_results$cluster <-NA
+for (c in 1:16){
+comp_results$cluster[c] <-  strsplit(comp_results$cluster_id, "_")[[c]][2]
+}
+#plot
+
+pdf(paste0("gb_sb_1467_proportion_of_cells_between_condition_all_cluster_",30,"PC_res_","0_08_",cond1,"_vs_",cond2,".pdf"), width=10)
+   p1<- (ggplot(temp_data, 
+               aes(y=as.factor(cluster_id), 
+                   x=((number_of_cells_per_sample_in_cluster+0.02)/(total_cells_per_sample.x*optim_factor)),
+                   fill=as.factor(animal_model.x))) +
+          geom_boxplot() +
+          xlab("normalized proportion of cells per condition")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_fill_manual(values = cols[c(3,4)])+  
+          labs(fill='Condition')+
+          theme_bw())
+ 
+   
+
+  p2<- (ggplot(comp_results, 
+               aes(y=as.numeric(cluster), 
+                   x=estimates,
+                   color=as.numeric(estimates_significance)))+
+           geom_point(aes(colour = cut(estimates_significance, c(0,0.1)), size=abs(estimates), fill=ifelse(as.numeric(estimates_significance) <=0.1, "darkred","grey"))) +
+           geom_vline(xintercept=0, lty="dashed", color="grey81")+
+          xlab("logOR")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_y_continuous(breaks = seq(0,15,1))+
+          theme_bw()+ theme(legend.position = "none")
+          )
+
+  
+  p2+p1
+
+dev.off()
+ 
+  ### 
+
+
+ 
+  
+cond1="KO - Vitamin B3"
+cond2="WT - Vitamin B3"
+temp_data <- full_count_data %>% filter(animal_model.x %in% c(cond2,cond1))
+###logOdds plots
+pheno_data %<>% mutate(animal_model = as.factor(animal_model),
+                       animal_model = relevel(animal_model, ref = "WT - Vitamin B3"))
+
+res <- logodds_optimized_norm_factors_likelihood_test_design(counts_res, pheno_data)
+all_results <- res$results 
+comp_results <- all_results %>% dplyr::filter(comparison %in% "groupKO - Vitamin B3")
+comp_results$cluster <-NA
+for (c in 1:16){
+comp_results$cluster[c] <-  strsplit(comp_results$cluster_id, "_")[[c]][2]
+}
+
+pdf(paste0("gb_sb_1467_proportion_of_cells_between_condition_all_cluster_",30,"PC_res_","0_08_",cond1,"_vs_",cond2,".pdf"))
+   p1<- (ggplot(temp_data, 
+               aes(y=as.factor(cluster_id), 
+                   x=((number_of_cells_per_sample_in_cluster+0.02)/(total_cells_per_sample.x*optim_factor)),
+                   fill=as.factor(animal_model.x))) +
+          geom_boxplot() +
+          xlab("normalized proportion of cells per condition")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_fill_manual(values = cols[c(1,3)])+  
+          labs(fill='Condition')+
+          theme_bw())
+ 
+   
+
+  p2<- (ggplot(comp_results, 
+               aes(y=as.numeric(cluster), 
+                   x=estimates,
+                   color=as.numeric(estimates_significance)))+
+           geom_point(aes(colour = cut(estimates_significance, c(0,0.1)), size=abs(estimates), fill=ifelse(as.numeric(estimates_significance) <=0.1, "darkred","grey"))) +
+           geom_vline(xintercept=0, lty="dashed", color="grey81")+
+          xlab("logOR")+
+          ylab("cluster id") +
+          ggtitle(paste0("")) +
+          scale_y_continuous(breaks = seq(0,15,1))+
+          theme_bw()+ theme(legend.position = "none")
+          )
+
+  
+  p2+p1
+
+dev.off()

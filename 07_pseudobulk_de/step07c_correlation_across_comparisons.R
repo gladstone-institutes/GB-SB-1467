@@ -94,7 +94,7 @@ for (clus in clusters) {
              subtitle = paste("Pearson r =", round(cor_val, 3)))
       
       print(p)
-     # ggsave(filename = paste0("correlation_bw_comparisons/scatter_cluster_", 
+      ggsave(filename = paste0("correlation_bw_comparisons/scatter_cluster_", 
                                clus, "_", c1, "_vs_", c2, ".pdf"), plot = p, width = 6, height = 5)
     }
   }

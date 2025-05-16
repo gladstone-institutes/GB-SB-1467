@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 ###############################################################################
 ## Project ID: GB-SB-1467
 ## Authors: Ayushi Agrawal
@@ -54,6 +56,18 @@ for (module in module_cols) {
     aov_res <- anova_test(df, formula = as.formula(paste(module, "~ Condition")))
     tukey_res <- tukey_hsd(df, as.formula(paste(module, "~ Condition")))
     
+    # Compute pooled SD for Cohen's d
+    pooled_sd <- df %>%
+      group_by(Condition) %>%
+      summarise(sd = sd(.data[[module]], na.rm = TRUE), .groups = "drop") %>%
+      summarise(pooled_sd = sqrt(mean(sd^2))) %>%
+      pull(pooled_sd)
+    
+    # Add Cohen's d
+    tukey_res <- tukey_res %>%
+      mutate(cohen_d = estimate / pooled_sd)
+    
+    # Add module and cluster info
     aov_res$module <- module_clean
     aov_res$cluster <- cl
     tukey_res$module <- module_clean
@@ -62,17 +76,18 @@ for (module in module_cols) {
     anova_results[[paste0(module, "_cl", cl)]] <- aov_res
     tukey_results[[paste0(module, "_cl", cl)]] <- tukey_res
     
+    # Annotate significant comparisons
     tukey_res_sig <- tukey_res %>%
       add_xy_position(x = "Condition") %>%
       filter(p.adj < 0.05) %>%
-      mutate(label = paste0(p.adj.signif, " (Effect size: ", round(estimate, 3), ")"))
+      mutate(label = paste0(p.adj.signif, " (Effect size = ", round(cohen_d, 2), ")"))
     
     p <- ggboxplot(df, x = "Condition", y = module, add = "jitter") +
       stat_pvalue_manual(tukey_res_sig, label = "label", hide.ns = TRUE) +
       labs(
         title = paste("Cluster", cl, "|", module_clean),
         subtitle = get_test_label(aov_res, detailed = TRUE),
-        caption = "Tukey HSD: ns (>0.05), * (<=0.05), ** (<=0.01), *** (<=0.001), **** (<=0.0001)\nValues in parentheses are effect sizes (mean difference)",
+        caption = "Tukey HSD: ns (>0.05), * (<=0.05), ** (<=0.01), *** (<=0.001), **** (<=0.0001)\nValues in parentheses are effect sizes (Cohen's d)",
         y = "Module Score", x = "Condition"
       ) +
       theme_bw()
@@ -152,7 +167,7 @@ signif_anova <- anova_df %>%
 # Filter Tukey results based on significant ANOVA hits
 sig_tukey <- tukey_df %>%
   mutate(
-    comparison = paste(group1, "vs", group2),
+    comparison = paste(group2, "vs", group1),
     module = sub("\\.v2024\\.1\\.Mm[0-9]+$", "", module),
     module_cluster = paste(module, cluster, sep = "_")
   ) %>%
@@ -164,14 +179,23 @@ sig_tukey$module_cluster <- factor(sig_tukey$module_cluster,
                                      pull(module_cluster) %>% unique())
 
 p3 <- ggplot(sig_tukey, aes(x = comparison, y = module_cluster)) +
-  geom_point(aes(size = abs(estimate), color = -log10(p.adj))) +
-  scale_color_viridis_c(option = "D", name = "-log10(p.adj)") +
-  scale_size_continuous(name = "|Mean Difference|") +
+  geom_point(aes(color = cohen_d, size = -log10(p.adj))) +
+  scale_color_gradient2(
+    low = "#053061",   # darker blue
+    mid = "#f7f7f7",   # light gray
+    high = "#B2182B",  # strong red-orange
+    midpoint = 0,
+    name = "Cohen's d"
+  ) +
+  scale_size_continuous(name = "-log10(p.adj)") +
   theme_minimal(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(size = 8)) +
-  labs(title = "Significant Condition Comparisons (Tukey HSD): p.adj < 0.05", 
-       x = "Condition Comparison", 
-       y = "Module × Cluster")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.text.y = element_text(size = 8)) +
+  labs(
+    title = "Significant Condition Comparisons (Tukey HSD): p.adj < 0.05", 
+    x = "Condition Comparison", 
+    y = "Module × Cluster"
+  )
 
 ggsave("exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_adj_pval_significant_tukey_comparisons_dotplot.pdf", 
        plot = p3, width = 8, height = 8)
