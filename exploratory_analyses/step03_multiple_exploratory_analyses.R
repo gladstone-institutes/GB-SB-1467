@@ -15,6 +15,7 @@ library(ggplot2)
 library(readr)
 library(tidyr)
 library(purrr)
+library(stringr)
 
 # set working directory
 setwd("/Volumes/Jain-Boinformatics-Collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025")
@@ -94,7 +95,79 @@ dev.off()
 
 
 
-# 3. Add module scores for cell death ------------------------------------------
+# 3. Add module scores for pathways --------------------------------------------
+# create output directory
+if (!(dir.exists("results/exploratory_analyses/evaluate_pathways"))) {
+  dir.create("results/exploratory_analyses/evaluate_pathways", 
+             recursive = T, 
+             showWarnings = F)
+}
+
+# number of metadata columns
+ncol_data <- ncol(data@meta.data)
+
+# Path to enrichr gene sets
+gmt_files <- list.files(path = "assets/enrichr_gene_sets", pattern = "\\.txt$", full.names = TRUE)
+
+for (file in gmt_files) {
+  database_prefix <- str_split(basename(file), "_")[[1]][1]
+  
+  # Read and parse the GMT file
+  lines <- readLines(file)
+  gene_sets <- lapply(lines, function(line) {
+    parts <- strsplit(line, "\t")[[1]]
+    list(
+      name = paste0(database_prefix, "_", gsub("[^A-Za-z0-9_]", "_", parts[1])),
+      genes = parts[-c(1, 2)]
+    )
+  })
+  
+  # Filter for gene sets containing ATF3 or ATF4
+  filtered_sets <- Filter(
+    function(x) {
+      grepl("ATF3|ATF4", x$name, ignore.case = TRUE) &&
+        !grepl("BATF3|BATF4", x$name, ignore.case = TRUE)
+    },
+    gene_sets
+  )
+  
+  # Convert list to a data frame with name and comma-separated genes
+  filtered_df <- do.call(rbind, lapply(filtered_sets, function(x) {
+    data.frame(
+      geneset_name = x$name,
+      genes = paste(x$genes, collapse = ","),
+      stringsAsFactors = FALSE
+    )
+  }))
+  
+  # Write to CSV
+  write.csv(filtered_df, 
+            file = file.path("assets/enrichr_gene_sets",
+                             paste0(database_prefix, "_filtered_ATF3_ATF4_sets.csv")), 
+            row.names = FALSE)
+  
+  
+  # Add module scores
+  for (gs in filtered_sets) {
+    gene_symbols <- unique(str_to_title(trimws(gs$genes)))
+    gene_symbols <- gene_symbols[nzchar(gene_symbols)]  # Remove blanks
+    
+    # Keep only genes present in the dataset
+    gene_symbols <- intersect(gene_symbols, rownames(data))
+    
+    if (length(gene_symbols) > 1) {
+      data <- AddModuleScore(
+        data,
+        features = list(gene_symbols),
+        ctrl = 100,
+        name = gs$name
+      )
+    }
+  }
+}
+
+
+
 # Path to MSigDB gene sets
 pathways <- list.files(path = "assets/MSigDB_gene_sets", pattern = "\\.tsv$", full.names = TRUE)
 
@@ -102,53 +175,54 @@ for (p in pathways){
   # Read gene set file
   meta <- read.delim(p, header = FALSE, sep = "\t", quote = "", stringsAsFactors = FALSE)
   kv <- setNames(meta$V2, meta$V1)
-  gene_symbols <- unique(trimws(unlist(strsplit(kv["GENE_SYMBOLS"], ","))))
+  gene_symbols <- unique(str_to_title(trimws(unlist(strsplit(kv["GENE_SYMBOLS"], ",")))))
   gene_symbols <- gene_symbols[nzchar(trimws(gene_symbols))]
   
   # Extract base name
   meta_colname <- basename(p) |> tools::file_path_sans_ext()
   
   # Add module score (creates e.g., HALLMARK_XYZ.v2024.1.Mm12345_1)
-  data <- AddModuleScore(
-    data,
-    features = list(gene_symbols),
-    ctrl = 100,
-    name = meta_colname
-  )
+  # Keep only genes present in the dataset
+  gene_symbols <- intersect(gene_symbols, rownames(data))
+  
+  if (length(gene_symbols) > 1) {
+    data <- AddModuleScore(
+      data,
+      features = list(gene_symbols),
+      ctrl = 100,
+      name = meta_colname
+    )
+  }
 }
 
 # Identify pathway score columns
-pathway_score_cols <- paste0(basename(pathways) |> tools::file_path_sans_ext(), "1")
+pathway_score_cols <- colnames(data@meta.data)[(ncol_data+1):ncol(data@meta.data)]
 cleaned_names <- sub("\\.v2024\\.1\\.Mm[0-9]+$", "", pathway_score_cols)
-
-# create output directory
-if (!(dir.exists("results/exploratory_analyses/evaluate_cell_death_pathways"))) {
-  dir.create("results/exploratory_analyses/evaluate_cell_death_pathways", 
-             recursive = T, 
-             showWarnings = F)
-}
 
 # save the metadata
 write.csv(data@meta.data,
-          file = paste0("results/exploratory_analyses/evaluate_cell_death_pathways/",
+          file = paste0("results/exploratory_analyses/evaluate_pathways/",
                         "gb_sb_1467_30PC_0.08res_clustered_and_cell_typed_pathway_modules_added_metadata.csv")
 )
 
-# create a dotplot f the pathway scores
-pdf(file = paste0("results/exploratory_analyses/evaluate_cell_death_pathways/",
+# create a dotplot of the pathway scores
+pdf(file = paste0("results/exploratory_analyses/evaluate_pathways/",
                   "gb_sb_1467_30PC_0.08res_cell_death_pathways_dotplot.pdf"),
-    height = 10,
-    width = 20)
+    height = 20,
+    width = 60)
 print(DotPlot(data,
               pathway_score_cols) +
         RotatedAxis() +
-        scale_x_discrete(labels = setNames(cleaned_names, pathway_score_cols))
+        scale_x_discrete(labels = setNames(cleaned_names, pathway_score_cols))+
+        theme(
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+        )
 )
 dev.off()
 
 # save the rds object
 saveRDS(data,
-        file = paste0("results/exploratory_analyses/evaluate_cell_death_pathways/",
+        file = paste0("results/exploratory_analyses/evaluate_pathways/",
                       "gb_sb_1467_30PC_0.08res_clustered_and_cell_typed_pathway_modules_added.rds")
 )
 

@@ -950,9 +950,11 @@ for (p in 1:length(predictors)) {
   
   # list all pairwise comparisons
   comparisons <- matrix(
-    c("WT - Vitamin B3", "WT + Vitamin B3", 
+    c("WT - Vitamin B3", "WT + Vitamin B3",
       "WT - Vitamin B3", "KO - Vitamin B3",
-      "KO + Vitamin B3", "KO - Vitamin B3"
+      "KO + Vitamin B3", "KO - Vitamin B3",
+      "KO - Vitamin B3", "WT - Vitamin B3",
+      "KO + Vitamin B3", "WT - Vitamin B3"
     ),
     nrow = 2
   )

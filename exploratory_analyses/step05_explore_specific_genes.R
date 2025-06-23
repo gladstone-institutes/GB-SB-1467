@@ -13,12 +13,14 @@
 # set working directory
 setwd(file.path("/Volumes/Jain-Boinformatics-Collaboration",
                 "sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025",
-                "results/07_pseudobulk_de"))
+                "results/07_pseudobulk_de_v2"))
 
 # load required libraries
 library(Seurat)
 library(dplyr)
 library(ggplot2)
+library(ggrepel)
+library(forcats)
 library(purrr)
 library(tidyr)
 library(tidyverse)
@@ -40,8 +42,8 @@ parse_msigdb <- function(file) {
 
 serine_bio_genes <- parse_msigdb("../../assets/MSigDB_gene_sets/REACTOME_SERINE_BIOSYNTHESIS.v2024.1.Mm.tsv")
 apoptosis_genes <- parse_msigdb("../../assets/MSigDB_gene_sets/HALLMARK_APOPTOSIS.v2024.1.Mm.tsv")
-atf4_genes <- str_to_title(parse_msigdb("../../assets/MSigDB_gene_sets/ATF4_Q2.v2024.1.Hs.tsv"))
-atf3_genes <- str_to_title(parse_msigdb("../../assets/MSigDB_gene_sets/ATF3_Q6.v2024.1.Hs.tsv"))
+atf4_genes <- str_to_title(parse_msigdb("../../assets/MSigDB_gene_sets/ATF4_Q2.v2025.1.Hs.tsv"))
+atf3_genes <- str_to_title(parse_msigdb("../../assets/MSigDB_gene_sets/ATF3_Q6.v2025.1.Hs.tsv"))
 
 serine_deprivation_induced_genes <- read_xlsx("../../assets/NIHMS1742915-supplement-2.xlsx", sheet = 1, skip = 3) %>%
   mutate(Symbol = str_to_title(Symbol)) %>%
@@ -77,6 +79,11 @@ all_deg_data <- map_dfr(deg_files, read_deg_file)
 # read in the data
 data <- readRDS("~/Downloads/Isha_proj/gb_sb_1467_30PC_0.08res_clustered_and_cell_typed.rds")
 
+# load legend to CSV
+legend_df <- read.csv("../06_clustering_cell_type/30PC_0.08res/celltype_abbreviation_legend.csv")
+
+
+
 
 # Prepare the pseudobulk data --------------------------------------------------
 predictors <- "Condition"
@@ -111,7 +118,7 @@ cluster_ids <- names(assays(pb))
 
 pb_mat <- do.call(cbind, lapply(cluster_ids, function(cl) {
   mat <- assays(pb)[[cl]]  # This is a matrix: genes × samples
-  colnames(mat) <- paste0("cl", cl, "_", colnames(mat))  # Rename columns
+  colnames(mat) <- paste0(legend_df$Abbreviation[legend_df$Cluster == cl], "_", colnames(mat))  # Rename columns
   mat
 }))
 
@@ -128,7 +135,7 @@ logCPM <- edgeR::cpm(dge, log = TRUE, prior.count = 1)
 # Main loop
 for (idx in 1:length(genelist)) {
   output_prefix <- names(genelist)[idx]
-  outdir <- paste0("../exploratory_analyses/evaluate_", output_prefix)
+  outdir <- paste0("../exploratory_analyses/evaluate_pathways/gene_expression_plots/", output_prefix)
   if (!dir.exists(outdir)) dir.create(outdir)
   
   genes_to_plot <- genelist[[idx]]
@@ -189,7 +196,7 @@ for (idx in 1:length(genelist)) {
   
   # ---- Heatmap of pseudobulk logCPM
   annotation_df <- data.frame(cluster_sample = colnames(logCPM)) %>%
-    separate(cluster_sample, into = c("cluster", "sample"), sep = "_", extra = "merge") %>%
+    extract(cluster_sample, into = c("cluster", "sample"), regex = "^(.*)_(.*)$") %>%
     left_join(as.data.frame(colData(sce)) %>% rownames_to_column("cell") %>% distinct(sample_id, .keep_all = TRUE), 
               by = c("sample" = "sample_id")) %>%
     distinct(sample, cluster, group_id) 
@@ -233,6 +240,60 @@ for (idx in 1:length(genelist)) {
   dev.off()
   
   
+  # ---- LogCPM boxplot
+  for (gene in genes_found) {
+    custom_levels <- c("WT - Vitamin B3", "KO - Vitamin B3", "WT + Vitamin B3", "KO + Vitamin B3")
+    
+    # Prepare data for plotting
+    plot_df <- data.frame(
+      expression = logCPM[gene, , drop = TRUE],
+      sample = colnames(logCPM),
+      gene = gene
+    ) %>%
+      left_join(annotation_df, by = c("sample" = "cluster_sample")) %>%
+      mutate(
+        cluster = factor(cluster),
+        group_id = factor(group_id, levels = custom_levels),
+        gene = factor(gene),
+        x_jit = jitter(as.numeric(group_id), amount = 0.2)
+      )
+    
+    pdf(file.path(outdir, paste0(gene, "_logCPM_boxplot_by_cluster.pdf")), 
+        width = 14, height = 6)
+    print(
+      ggplot(plot_df %>%
+               filter(cluster %in% c("2_Astro", "8_Mural", "12_Endo")),
+             aes(x = group_id, y = expression, fill = group_id)) +
+        geom_violin(alpha = 0.5, color = "black") +
+        geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) +
+        geom_point(aes(x = x_jit), shape = 21, size = 1, color = "black") +
+        geom_text_repel(
+          aes(x = x_jit, label = sample.y),
+          size = 3,
+          segment.color = "gray30",
+          segment.size = 0.3,
+          min.segment.length = 0.1,
+          box.padding = 0.5,
+          point.padding = 0.25,
+          max.overlaps = Inf,
+          show.legend = FALSE
+        ) +
+        facet_wrap(~ cluster, scales = "free_x", ncol = 4) +
+        labs(
+          title = paste("log2CPM of", gene, "by Condition and Cluster"),
+          x = "Condition",
+          y = expression("log"[2]*"CPM")
+        ) +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    )
+    
+    dev.off()
+  }
+  
+  
+  
+  
   # ---- DotPlot
   dot_height <- ifelse(length(unique(data$seurat_clusters)) < 10, 7,
                        7 + ceiling(length(unique(data$seurat_clusters)) / 10))
@@ -261,7 +322,7 @@ for (idx in 1:length(genelist)) {
 
 # Additional plots for reactome serine biosynthesis pathway genes --------------
 output_prefix <- "mouse_reactome_serine_biosynthesis_genes"
-outdir <- "../exploratory_analyses/evaluate_mouse_reactome_serine_biosynthesis_genes"
+outdir <- "../exploratory_analyses/evaluate_pathways/gene_expression_plots/mouse_reactome_serine_biosynthesis_genes"
 
 # ---- DotPlot
 dot_width <- ifelse(length(unique(data$seurat_clusters)) < 10, 7,

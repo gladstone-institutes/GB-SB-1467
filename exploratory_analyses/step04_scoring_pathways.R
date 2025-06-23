@@ -17,19 +17,21 @@ library(stringr)
 library(rstatix)
 library(ggpubr)
 library(ggsignif)
+library(forcats)
 
 # set working directory
 setwd("/Volumes/Jain-Boinformatics-Collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/results")
 
 # load metadata
-meta <- read.csv(file.path("exploratory_analyses/evaluate_cell_death_pathways",
+meta <- read.csv(file.path("exploratory_analyses/evaluate_pathways/",
                            "gb_sb_1467_30PC_0.08res_clustered_and_cell_typed_pathway_modules_added_metadata.csv"))
 
 # clean condition labels
 meta$Condition <- gsub("-", "wo", gsub("\\+", "w", gsub(" ", "_", meta$Condition)))
 
 # identify module score columns
-module_cols <- grep("v2024.1.Mm1$", colnames(meta), value = TRUE)
+module_cols <- c("Rummagene_PMC9314667_Table_1_xlsx_Regulons_ATF4_ATF41",
+                 grep("v2024.1.Mm1$", colnames(meta), value = TRUE))
 
 # Aggregate per sample per cluster
 agg_scores <- meta %>%
@@ -38,7 +40,7 @@ agg_scores <- meta %>%
   summarise(across(all_of(module_cols), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
 # Output directory
-plot_dir <- "exploratory_analyses/evaluate_cell_death_pathways/per_cluster_plots"
+plot_dir <- "exploratory_analyses/evaluate_pathways/per_cluster_plots"
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 
 # Initialize results lists
@@ -48,11 +50,18 @@ tukey_results <- list()
 # Run ANOVA and Tukey HSD per module × cluster
 for (module in module_cols) {
   module_clean <- sub("\\.v2024\\.1\\.Mm[0-9]+$", "", module)
+  module_clean <- sub("1$", "", module_clean)
   
   for (cl in unique(agg_scores$cluster)) {
     df <- agg_scores %>% filter(cluster == cl)
-    df$Condition <- factor(df$Condition)
     
+    # Convert to factor for modeling
+    df$Condition <- factor(df$Condition, levels = c("WT_wo_Vitamin_B3",
+                                                    "KO_wo_Vitamin_B3",
+                                                    "WT_w_Vitamin_B3",
+                                                    "KO_w_Vitamin_B3"))
+    
+    # ANOVA and Tukey
     aov_res <- anova_test(df, formula = as.formula(paste(module, "~ Condition")))
     tukey_res <- tukey_hsd(df, as.formula(paste(module, "~ Condition")))
     
@@ -82,6 +91,7 @@ for (module in module_cols) {
       filter(p.adj < 0.05) %>%
       mutate(label = paste0(p.adj.signif, " (Effect size = ", round(cohen_d, 2), ")"))
     
+    # Plot
     p <- ggboxplot(df, x = "Condition", y = module, add = "jitter") +
       stat_pvalue_manual(tukey_res_sig, label = "label", hide.ns = TRUE) +
       labs(
@@ -97,6 +107,7 @@ for (module in module_cols) {
   }
 }
 
+
 # Combine ANOVA and Tukey results
 anova_df <- map_df(anova_results, ~ as_tibble(as.data.frame(.x)))
 tukey_df <- map_df(tukey_results, ~ as_tibble(as.data.frame(.x)))
@@ -106,10 +117,10 @@ anova_df$p_adj <- p.adjust(anova_df$p, method = "BH")
 
 # Save results
 write.csv(anova_df, 
-          "exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_30PC_0.08res_anova_summary_module_scores.csv", 
+          "exploratory_analyses/evaluate_pathways/gb_sb_1467_30PC_0.08res_anova_summary_module_scores.csv", 
           row.names = FALSE)
 write.csv(tukey_df, 
-          "exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_30PC_0.08res_tukey_results_module_scores.csv", 
+          "exploratory_analyses/evaluate_pathways/gb_sb_1467_30PC_0.08res_tukey_results_module_scores.csv", 
           row.names = FALSE)
 
 
@@ -119,6 +130,7 @@ agg_long <- agg_scores %>%
   pivot_longer(cols = all_of(module_cols), names_to = "module", values_to = "score") %>%
   mutate(
     module = sub("\\.v2024\\.1\\.Mm[0-9]+$", "", module),
+    module = sub("1$", "", module),
     module_cluster = paste(module, cluster, sep = "_")
   )
 
@@ -141,8 +153,8 @@ p_raw <- ggplot(agg_long_raw, aes(x = Condition, y = score, fill = Condition)) +
         strip.text = element_text(size = 8), 
         panel.spacing = unit(1, "lines"))
 
-ggsave("exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_raw_pval_summary_module_scores.pdf", 
-       plot = p_raw, width = 20, height = 16)
+ggsave("exploratory_analyses/evaluate_pathways/gb_sb_1467_raw_pval_summary_module_scores.pdf", 
+       plot = p_raw, width = 35, height = 16)
 
 p_adj <- ggplot(agg_long_adj, aes(x = Condition, y = score, fill = Condition)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
@@ -154,8 +166,8 @@ p_adj <- ggplot(agg_long_adj, aes(x = Condition, y = score, fill = Condition)) +
         strip.text = element_text(size = 8), 
         panel.spacing = unit(1, "lines"))
 
-ggsave("exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_adj_pval_summary_module_scores.pdf", 
-       plot = p_adj, width = 16, height = 12)
+ggsave("exploratory_analyses/evaluate_pathways/gb_sb_1467_adj_pval_summary_module_scores.pdf", 
+       plot = p_adj, width = 30, height = 12)
 
 
 # Summary dotplot for significant Tukey results
@@ -197,7 +209,7 @@ p3 <- ggplot(sig_tukey, aes(x = comparison, y = module_cluster)) +
     y = "Module × Cluster"
   )
 
-ggsave("exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_adj_pval_significant_tukey_comparisons_dotplot.pdf", 
+ggsave("exploratory_analyses/evaluate_pathways/gb_sb_1467_adj_pval_significant_tukey_comparisons_dotplot.pdf", 
        plot = p3, width = 8, height = 8)
 
 
@@ -206,7 +218,7 @@ ggsave("exploratory_analyses/evaluate_cell_death_pathways/gb_sb_1467_adj_pval_si
 # Write session info
 writeLines(
   capture.output(sessionInfo()),
-  file.path("exploratory_analyses/evaluate_cell_death_pathways/", "sessionInfo.txt")
+  file.path("exploratory_analyses/evaluate_pathways/", "sessionInfo.txt")
 )
 print("***** Script Complete *****")
 

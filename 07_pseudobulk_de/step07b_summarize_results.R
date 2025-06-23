@@ -17,11 +17,19 @@ library(tidyr)
 library(UpSetR)
 library(tibble)
 library(readr)
+library(forcats)
 
 # set working directory
 setwd(file.path("/Volumes/Jain-Boinformatics-Collaboration",
                 "sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025",
-                "results/07_pseudobulk_de"))
+                "results/07_pseudobulk_de_v2"))
+
+# annotations for clusters
+celltype_abbr <- read.csv("../06_clustering_cell_type/30PC_0.08res/celltype_abbreviation_legend.csv")
+
+# comparisons to summarize
+comparisons_of_interest <- c("KO-VitaminB3_vs_WT-VitaminB3",
+                             "KO+VitaminB3_vs_WT-VitaminB3")
 
 # Define path to DE result files
 deg_dir <- "gene_expression_associations"
@@ -38,8 +46,9 @@ count_deg <- function(file) {
     filter(p_adj.loc < 0.01, abs(logFC) > 1)
   
   parts <- strsplit(file, "/")[[1]]
-  cluster <- parts[length(parts) - 1]
   comp <- parts[length(parts) - 2]
+  
+  cluster <- celltype_abbr$Abbreviation[celltype_abbr$Cluster == unique(df$cluster_id)]
   
   data.frame(
     Comparison = comp,
@@ -52,8 +61,8 @@ count_deg <- function(file) {
 # Apply to all files
 deg_summary <- map_dfr(deg_files, count_deg)
 
-# Filter to keep only rows with DEG_Count > 0
-deg_summary <- deg_summary %>% filter(DEG_Count > 0)
+# Filter to keep only comparisons of interest
+deg_summary <- deg_summary %>% filter(Comparison %in% comparisons_of_interest)
 
 # Order Cluster factor numerically
 extract_numeric_cluster <- function(cluster_label) {
@@ -83,27 +92,35 @@ ggplot(deg_summary, aes(x = Cluster, y = DEG_Count, fill = Comparison)) +
        y = "# DEGs (padj < 0.01 & abs(log2FC) > 1)", x = "Cluster")
 
 # save plot
-ggsave("DEG_counts_barplot.pdf", width = 10, height = 6)
+ggsave("DEG_counts_barplot.pdf", width = 14, height = 6)
 
 
-# Reorder cluster factor within each comparison by DEG count
-deg_summary_reorder <- deg_summary %>%
-  group_by(Comparison) %>%
-  mutate(Cluster = reorder_within(Cluster, DEG_Count, Comparison)) %>%
-  ungroup()
+
+# Choose the reference comparison to order by
+reference_comparison <- "KO-VitaminB3_vs_WT-VitaminB3"
+
+# Get the cluster ordering based on the reference comparison
+cluster_order <- deg_summary %>%
+  filter(Comparison == reference_comparison) %>%
+  arrange(DEG_Count) %>%
+  pull(Cluster)
+
+# Convert Cluster to a factor with the desired order
+deg_summary$Cluster <- factor(deg_summary$Cluster, levels = cluster_order)
+
 
 # Plot: horizontal, faceted, ordered by DEG count
-ggplot(deg_summary_reorder, aes(x = DEG_Count, y = Cluster, fill = Comparison)) +
+ggplot(deg_summary, aes(x = DEG_Count, y = Cluster, fill = Comparison)) +
   geom_col() +
   geom_text(aes(label = ifelse(DEG_Count > 0, DEG_Count, "")),
             hjust = -0.1, size = 3) +
   scale_y_reordered() +
-  facet_wrap(~ Comparison, scales = "free_y") +
+  facet_wrap(~ Comparison) +
   theme_bw() +
   theme(strip.text = element_text(face = "bold"),
         axis.text.y = element_text(size = 10)) +
   labs(title = "DEG Counts per Cluster (Faceted by Comparison)",
-       x = "# DEGs (padj < 0.01 & |log2FC| > 1)", y = "Cluster")
+       x = "# DEGs (padj < 0.01 & abs(log2FC) > 1)", y = "Cluster")
 ggsave("DEG_counts_barplot_facet_by_comparison.pdf", width = 15, height = 5)
 
 
