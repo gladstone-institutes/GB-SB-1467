@@ -168,11 +168,11 @@ pe_mouse_ngene <- ggplot(all_metadata,
   theme_classic() + theme(
     panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
     text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9),
     plot.margin = margin(t = 5, r = 5, b = 40, l = 5, unit = "pt"),
     legend.position = "none") + 
   ggtitle("Number of Genes per Cell by individual animal") +
-  xlab("Mouse number") + 
+  xlab("Mouse number & Condition") + 
   ylab("Number of Genes per Cell") 
 
 
@@ -186,11 +186,11 @@ pf_mouse_numi <- ggplot(all_metadata,
   theme_classic() + theme(
     panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
     text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9),
     plot.margin = margin(t = 5, r = 5, b = 40, l = 5, unit = "pt"),
     legend.position = "none") + 
   ggtitle("nUMI per Cell by individual animal") +
-  xlab("Mouse number") + 
+  xlab("Mouse number & Condition") + 
   ylab("nUMI per Cell")
 
 
