@@ -11,9 +11,10 @@ library(ggplot2)
 library(grid)
 library(gridExtra)
 library(cowplot)
+library(ggrastr)
 
 #set all directory paths
-basedir <- "~/Dropbox (Gladstone)/GB-SB-1467/"
+basedir <- "~/Dropbox (Gladstone)/GB-SB-1467"
 outdir <- file.path(basedir, "paper/figures/QC_suppFig/")
 setwd(basedir)
 
@@ -84,7 +85,7 @@ avg_qc_features_per_mouse <- all_metadata %>% group_by(SampleID, Condition) %>%
             .groups = "drop") %>% 
   as.data.frame()
 avg_qc_features_per_mouse$SampleID <- factor(avg_qc_features_per_mouse$SampleID, 
-                                              levels = sort(unique(avg_qc_features_per_mouse$SampleID)))
+                                             levels = sort(unique(avg_qc_features_per_mouse$SampleID)))
 
 # Export summary statistics as supplementary tables
 write.csv(avg_qc_features_per_cluster, 
@@ -100,14 +101,16 @@ write.csv(avg_qc_features_per_mouse,
 pa_cluster_cells <- ggplot(avg_qc_features_per_cluster, 
                            aes(x=seurat_clusters, y=total_cells, fill=seurat_clusters)) +
   geom_bar(position=position_dodge(), stat="identity") + 
-  scale_x_discrete(expand = c(0.04,0.04))+
-  theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
+  scale_x_discrete(expand = c(0.04,0.04)) +
+  scale_y_continuous(trans = "log2") +
+  theme_classic() + 
+  theme(
+    panel.border = element_rect(colour = "black", fill=NA),
+    text = element_text(size = 10),
     legend.position = "none") + 
   ggtitle("Number of Cells per Cluster") +
   xlab("Cell Cluster") + 
-  ylab("Number of Cells")
+  ylab("Number of Cells (log2 scale)")
 
 
 #QC fig b - nFeature_RNA per cluster
@@ -115,11 +118,13 @@ pb_cluster_ngene <- ggplot(all_metadata,
                            aes(x=seurat_clusters, y=nFeature_RNA, fill=seurat_clusters)) + 
   stat_boxplot(geom='errorbar') +
   geom_boxplot(outlier.color = NA) + 
-  geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  #geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  geom_point_rast(alpha = 0.2, size = 0.2,
+                  position = position_jitter(width = 0.1, seed = 1234)) +
   scale_x_discrete(expand = c(0.04,0.04))+
   theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
+    panel.border = element_rect(colour = "black", fill=NA),
+    text = element_text(size = 10),
     legend.position = "none") + 
   ggtitle("Number of Genes per Cell by Cluster") +
   xlab("Cell Cluster") + 
@@ -131,11 +136,13 @@ pc_cluster_numi <- ggplot(all_metadata,
                           aes(x=seurat_clusters, y=nCount_RNA, fill=seurat_clusters)) + 
   stat_boxplot(geom='errorbar') +
   geom_boxplot(outlier.color = NA) + 
-  geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  #geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  geom_point_rast(alpha = 0.2, size = 0.2,
+                  position = position_jitter(width = 0.1, seed = 1234)) +
   scale_x_discrete(expand = c(0.04,0.04))+
   theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
+    panel.border = element_rect(colour = "black", fill=NA),
+    text = element_text(size = 10),
     legend.position = "none") + 
   ggtitle("nUMI per Cell by Cluster") +
   xlab("Cell Cluster") + 
@@ -147,11 +154,13 @@ pd_cluster_mt <- ggplot(all_metadata,
                         aes(x=seurat_clusters, y=percent.mt, fill=seurat_clusters)) + 
   stat_boxplot(geom='errorbar') +
   geom_boxplot(outlier.color = NA) + 
-  geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  #geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  geom_point_rast(alpha = 0.2, size = 0.2,
+                  position = position_jitter(width = 0.1, seed = 1234)) +
   scale_x_discrete(expand = c(0.04,0.04))+
   theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
+    panel.border = element_rect(colour = "black", fill=NA),
+    text = element_text(size = 10),
     legend.position = "none") + 
   ggtitle("% Mitochondrial Genes per Cells by Cluster") +
   xlab("Cell Cluster") + 
@@ -163,12 +172,14 @@ pe_mouse_ngene <- ggplot(all_metadata,
                          aes(x=MouseNumber_Condition, y=nFeature_RNA, fill=MouseNumber_Condition)) + 
   stat_boxplot(geom='errorbar') +
   geom_boxplot(outlier.color = NA) + 
-  geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  #geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  geom_point_rast(alpha = 0.2, size = 0.2,
+                  position = position_jitter(width = 0.1, seed = 1234)) +
   scale_x_discrete(expand = c(0.04,0.04))+
   theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9),
+    panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+    text = element_text(size = 10),
+    axis.text.x = element_text(angle = 50, hjust = 1, vjust = 1, size = 8),
     plot.margin = margin(t = 5, r = 5, b = 40, l = 5, unit = "pt"),
     legend.position = "none") + 
   ggtitle("Number of Genes per Cell by individual animal") +
@@ -181,12 +192,14 @@ pf_mouse_numi <- ggplot(all_metadata,
                         aes(x=MouseNumber_Condition, y=nCount_RNA, fill=MouseNumber_Condition)) + 
   stat_boxplot(geom='errorbar') +
   geom_boxplot(outlier.color = NA) + 
-  geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  #geom_point(alpha = 0.2, size = 0.2, position = position_jitter(width = 0.1, seed = 1234)) +
+  geom_point_rast(alpha = 0.2, size = 0.2,
+                  position = position_jitter(width = 0.1, seed = 1234)) +
   scale_x_discrete(expand = c(0.04,0.04))+
   theme_classic() + theme(
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9),
+    panel.border = element_rect(colour = "black", fill=NA),
+    text = element_text(size = 10),
+    axis.text.x = element_text(angle = 50 , hjust = 1, vjust = 1, size = 8),
     plot.margin = margin(t = 5, r = 5, b = 40, l = 5, unit = "pt"),
     legend.position = "none") + 
   ggtitle("nUMI per Cell by individual animal") +
@@ -197,7 +210,7 @@ pf_mouse_numi <- ggplot(all_metadata,
 
 
 # Create 6-panel publication-ready QC figure
-pdf(file.path(outdir, "supp_qc_figure_6panels.pdf"),
+pdf(file.path("paper/revision_Dec2025", "supp_qc_figure_6panels_v2.pdf"),
     width = 14, height = 18)
 grid.arrange(pa_cluster_cells, pb_cluster_ngene, pc_cluster_numi, 
              pd_cluster_mt, pe_mouse_ngene, pf_mouse_numi, 
