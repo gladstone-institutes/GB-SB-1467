@@ -17,7 +17,7 @@ setwd(file.path("/Volumes/Jain-Boinformatics-Collaboration",
                 "sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025/results"))
 
 # load the Seurat object
-data <- readRDS("~/Documents/downloads/Isha_proj/gb_sb_1467_30PC_0.08res_clustered_and_cell_typed_pathway_modules_added.rds")
+data <- readRDS("exploratory_analyses/evaluate_pathways/gb_sb_1467_30PC_0.08res_clustered_and_cell_typed_pathway_modules_added.rds")
 
 # get module score columns from meta data
 cols <- colnames(data@meta.data)[grep(".v2024.1.Mm1$", colnames(data@meta.data))]

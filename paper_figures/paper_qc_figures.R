@@ -46,7 +46,8 @@ options(
 
 # Load data and prepare metadata -----------------------------------------------
 #load the Seurat object
-dat <- readRDS("gb_sb_1467_30PC_0.08res_clustered_and_cell_typed.rds")
+dat <- readRDS(file.path("/Volumes/Jain-Boinformatics-Collaboration/sb-1467-skyler-blume-isha-jain-snrnaseq-mm10-mar-2025",
+                         "results/06_clustering_cell_type/30PC_0.08res/gb_sb_1467_30PC_0.08res_clustered_and_cell_typed.rds"))
 
 ##the number of cells in each mouse in each cluster
 all_metadata <- dat[[]]
