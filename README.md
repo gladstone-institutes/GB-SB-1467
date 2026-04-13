@@ -1,5 +1,12 @@
 # GB-SB-1467
-Mouse single-nucleus RNA-seq data analysis (GEM-X Flex Reagent Kit)
+Mouse single-nucleus RNA-seq data analysis (GEM-X Flex Reagent Kit)  
+  
+## Citation
+If you find this code or our paper useful in your research, please cite:
+
+**Vitamin B2 metabolism promotes FSP1 stability to prevent ferroptosis**  
+_Deol, K.K., Harris, C.A., Tomlinson, S.J. et al. Nat Struct Mol Biol 33, 525–536 (2026)._  
+https://doi.org/10.1038/s41594-026-01759-x
 
 ## Researchers
 - Jain lab: Skyler Blume, Ankur Garg, Isha Jain
